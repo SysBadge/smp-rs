@@ -4,29 +4,31 @@
 use std::cmp::min;
 use std::error::Error;
 use std::path::PathBuf;
-use std::time::Duration;
 
 use clap::{Parser, Subcommand, ValueEnum};
 use mcumgr_smp::{
-    application_management, application_management::GetImageStateResult,
-    application_management::WriteImageChunkResult, os_management, os_management::EchoResult,
-    shell_management, shell_management::ShellResult, SMPFrame,
+    application_management,
+    application_management::GetImageStateResult,
+    application_management::WriteImageChunkResult,
+    os_management,
+    os_management::EchoResult,
+    shell_management,
+    shell_management::ShellResult,
+    transport::{self, CBORTransporter},
+    SMPFrame,
 };
 use sha2::Digest;
 use tracing::debug;
 use tracing_subscriber::prelude::*;
 
-use crate::transport::serial::SerialTransport;
-use crate::transport::udp::UdpTransport;
-use crate::transport::CborSMPTransport;
-
 /// interactive shell support
 pub mod shell;
-pub mod transport;
 
 #[derive(ValueEnum, Copy, Clone, Debug)]
 pub enum Transport {
+    #[cfg(feature = "transport-serial")]
     Serial,
+    #[cfg(feature = "transport-udp")]
     UDP,
 }
 
@@ -106,7 +108,8 @@ enum ApplicationCmd {
     },
 }
 
-fn main() -> Result<(), Box<dyn Error>> {
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn Error>> {
     tracing_subscriber::registry()
         .with(tracing_subscriber::EnvFilter::try_from_default_env().unwrap_or_else(|_| "".into()))
         .with(tracing_subscriber::fmt::layer())
@@ -114,39 +117,33 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let cli: Cli = Cli::parse();
 
-    let mut transport = match cli.transport {
-        Transport::Serial => {
-            let serial = serialport::new(
-                cli.serial_device.expect("serial device required"),
-                cli.serial_baud,
-            )
-            .open_native()?;
+    let mut transport: CBORTransporter<Box<dyn transport::SMPTransport + Unpin>> =
+        match cli.transport {
+            #[cfg(feature = "transport-serial")]
+            Transport::Serial => {
+                let transport =
+                    transport::SerialTransport::open(cli.serial_device.unwrap(), cli.serial_baud)?;
+                let transport = Box::new(transport);
 
-            CborSMPTransport {
-                transport: Box::new(SerialTransport {
-                    serial_device: Box::new(serial),
-                    buf: vec![0u8; 128],
-                }),
+                CBORTransporter::new_serial(transport)
             }
-        }
-        Transport::UDP => {
-            let host = cli.dest_host.expect("dest_host required");
-            let port = cli.udp_port;
+            #[cfg(feature = "transport-serial")]
+            Transport::UDP => {
+                let host = cli.dest_host.expect("dest_host required");
+                let port = cli.udp_port;
 
-            debug!("connecting to {} at port {}", host, port);
+                debug!("connecting to {} at port {}", host, port);
 
-            CborSMPTransport {
-                transport: Box::new(UdpTransport::new((host, port))?),
+                let transport = transport::UDPTransport::new((host, port)).await?;
+                let transport = Box::new(transport);
+                CBORTransporter::new(transport)
             }
-        }
-    };
-
-    transport.recv_timeout(Some(Duration::from_millis(cli.timeout_ms)))?;
+        };
 
     match cli.command {
         Commands::Os(OsCmd::Echo { msg }) => {
             let ret: SMPFrame<EchoResult> =
-                transport.transceive_cbor(os_management::echo(42, msg))?;
+                transport.transceive(os_management::echo(42, msg)).await?;
             debug!("{:?}", ret);
 
             match ret.data {
@@ -159,8 +156,9 @@ fn main() -> Result<(), Box<dyn Error>> {
             }
         }
         Commands::Shell(ShellCmd::Exec { cmd }) => {
-            let ret: SMPFrame<ShellResult> =
-                transport.transceive_cbor(shell_management::shell_command(42, cmd))?;
+            let ret: SMPFrame<ShellResult> = transport
+                .transceive(shell_management::shell_command(42, cmd))
+                .await?;
             debug!("{:?}", ret);
 
             match ret.data {
@@ -173,7 +171,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             }
         }
         Commands::Shell(ShellCmd::Interactive) => {
-            shell::shell(&mut transport)?;
+            shell::shell(&mut transport).await?;
         }
         Commands::App(ApplicationCmd::Flash {
             slot,
@@ -202,7 +200,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                 let frame = updater.write_chunk(chunk);
 
                 let resp_frame: SMPFrame<WriteImageChunkResult> =
-                    transport.transceive_cbor(frame)?;
+                    transport.transceive(frame).await?;
 
                 match resp_frame.data {
                     WriteImageChunkResult::Ok(payload) => {
@@ -218,8 +216,9 @@ fn main() -> Result<(), Box<dyn Error>> {
             println!("sent all bytes: {}", offset);
         }
         Commands::App(ApplicationCmd::Info) => {
-            let ret: SMPFrame<GetImageStateResult> =
-                transport.transceive_cbor(application_management::get_state(42))?;
+            let ret: SMPFrame<GetImageStateResult> = transport
+                .transceive(application_management::get_state(42))
+                .await?;
             debug!("{:?}", ret);
 
             match ret.data {

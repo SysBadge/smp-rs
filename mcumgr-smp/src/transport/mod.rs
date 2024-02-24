@@ -5,10 +5,14 @@ pub use error::{Error, Result};
 use tokio::io::{self};
 
 #[cfg(feature = "transport-serial")]
-pub mod serial;
+mod serial;
+#[cfg(feature = "transport-serial")]
+pub use serial::SerialTransport;
 
 #[cfg(feature = "transport-udp")]
-pub mod udp;
+mod udp;
+#[cfg(feature = "transport-udp")]
+pub use udp::UDPTransport;
 
 #[cfg(feature = "payload-cbor")]
 mod cbor;

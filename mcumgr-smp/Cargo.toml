@@ -34,7 +34,7 @@ pin-project-lite = "0.2"
 tokio = { features = [ "rt", "macros" ]}
 
 [features]
-default = ["serial", "payload-cbor", "transports"]
+default = ["serial", "payload-cbor"]
 serial = ["base64", "crc", ]
 payload-cbor = ["serde", "serde_bytes", "ciborium"]
 transport = [ "dep:tokio", "tokio/io-util" ]

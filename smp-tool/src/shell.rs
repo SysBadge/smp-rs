@@ -10,9 +10,9 @@ use tracing::debug;
 
 use mcumgr_smp::{shell_management, shell_management::ShellResult, SMPFrame};
 
-use crate::transport::CborSMPTransport;
+use mcumgr_smp::transport::CBORTransporter;
 
-pub fn shell(transport: &mut CborSMPTransport) -> Result<(), Box<dyn Error>> {
+pub async fn shell(transport: &mut CBORTransporter) -> Result<(), Box<dyn Error>> {
     let keybindings = default_emacs_keybindings();
     let edit_mode = Box::new(Emacs::new(keybindings));
 
@@ -30,8 +30,9 @@ pub fn shell(transport: &mut CborSMPTransport) -> Result<(), Box<dyn Error>> {
             Signal::Success(buffer) => 'succ: {
                 let argv: Vec<_> = buffer.split_whitespace().map(|s| s.to_owned()).collect();
 
-                let ret: Result<SMPFrame<ShellResult>, _> =
-                    transport.transceive_cbor(shell_management::shell_command(42, argv));
+                let ret: Result<SMPFrame<ShellResult>, _> = transport
+                    .transceive(shell_management::shell_command(42, argv))
+                    .await;
                 debug!("{:?}", ret);
 
                 let data = match ret {

@@ -86,6 +86,15 @@ impl<T: SMPTransport + Unpin> CBORTransporter<T> {
         SMPFrame::<F>::decode_with_cbor(&buf).map_err(Error::from)
     }
 
+    pub async fn transceive<O, I>(&mut self, frame: SMPFrame<O>) -> Result<SMPFrame<I>>
+    where
+        O: serde::Serialize,
+        I: serde::de::DeserializeOwned,
+    {
+        self.send(frame).await?;
+        self.recv().await
+    }
+
     /// Receive a full not framed frame. Length is decoded from byte 2 and 3 in the inital bytes.
     async fn recv_full_frame(&mut self) -> Result<Vec<u8>> {
         let mut ret = Vec::new();
