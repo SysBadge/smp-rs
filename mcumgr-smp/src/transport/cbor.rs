@@ -345,6 +345,7 @@ mod test {
         Ok(())
     }
 
+    #[cfg(feature = "serial")]
     #[tokio::test]
     async fn read_serial_frame() -> Result {
         let bytes = &[
@@ -362,6 +363,7 @@ mod test {
         Ok(())
     }
 
+    #[cfg(feature = "serial")]
     #[tokio::test]
     async fn write_serial_frame() -> Result {
         let mut cbor = CBORTransporter::new_serial(VecTransport::new());

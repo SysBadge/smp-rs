@@ -7,6 +7,9 @@ use tokio::io::{self};
 #[cfg(feature = "transport-serial")]
 pub mod serial;
 
+#[cfg(feature = "transport-udp")]
+pub mod udp;
+
 #[cfg(feature = "payload-cbor")]
 mod cbor;
 #[cfg(feature = "payload-cbor")]
