@@ -25,19 +25,23 @@ crc = { version = "3.0", optional = true }
 tracing = "0.1"
 
 # Transports
-## Transport serial
-tokio-serial = { version = "5.4", optional = true }
 tokio = { version = "1.21", optional = true }
+tokio-util = { version = "0.7", optional = true }
+tokio-serial = { version = "5.4", optional = true }
 pin-project-lite = "0.2"
+btleplug = { version = "0.11", optional = true }
+futures = { version = "0.3", optional = true }
+uuid = { version = "1.7", optional = true }
 
 [dev-dependencies]
 tokio = { features = [ "rt", "macros" ]}
 
 [features]
-default = ["serial", "payload-cbor"]
+default = ["serial", "payload-cbor", "transports"]
 serial = ["base64", "crc", ]
 payload-cbor = ["serde", "serde_bytes", "ciborium"]
 transport = [ "dep:tokio", "tokio/io-util" ]
-transports = [ "transport-serial", "transport-udp" ]
+transports = [ "transport-serial", "transport-udp", "transport-ble" ]
 transport-serial = [ "transport", "dep:tokio-serial", "dep:tokio", "tokio/io-util" ]
 transport-udp = [ "transport", "dep:tokio", "tokio/net" ]
+transport-ble = [ "transport", "dep:tokio", "dep:btleplug", "dep:futures", "tokio/sync", "tokio/rt", "dep:tokio-util", "dep:uuid" ]

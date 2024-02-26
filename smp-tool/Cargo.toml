@@ -7,9 +7,10 @@ authors = ["Sascha Zenglein <zenglein@gessler.de>"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [features]
-default = [ "transport-serial", "transport-udp" ]
+default = [ "transport-serial", "transport-udp", "transport-ble" ]
 transport-serial = [ "mcumgr-smp/transport-serial" ]
 transport-udp = [ "mcumgr-smp/transport-udp" ]
+transport-ble = [ "mcumgr-smp/transport-ble" ]
 
 [dependencies]
 mcumgr-smp = { path = "../mcumgr-smp", features = [ "transport" ] }

@@ -30,6 +30,8 @@ pub enum Transport {
     Serial,
     #[cfg(feature = "transport-udp")]
     UDP,
+    #[cfg(feature = "transport-ble")]
+    BLE,
 }
 
 #[derive(Parser, Debug)]
@@ -44,20 +46,25 @@ struct Cli {
     #[arg(short, long, value_enum)]
     transport: Transport,
 
+    #[cfg(feature = "transport-serial")]
     #[arg(short, long, required_if_eq("transport", "serial"))]
     serial_device: Option<String>,
 
+    #[cfg(feature = "transport-serial")]
     #[arg(short = 'b', long, default_value_t = 115200)]
     serial_baud: u32,
 
+    #[cfg(feature = "transport-udp")]
     #[arg(short = 'd', long, required_if_eq("transport", "udp"))]
     dest_host: Option<String>,
 
+    #[cfg(feature = "transport-udp")]
     #[arg(short = 'p', long, default_value_t = 1337)]
     udp_port: u16,
 
-    #[arg(long, default_value = "5000")]
-    timeout_ms: u64,
+    #[cfg(feature = "transport-ble")]
+    #[arg(long, required_if_eq("transport", "ble"))]
+    peer_name: Option<String>,
 
     #[command(subcommand)]
     command: Commands,
@@ -127,7 +134,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
                 CBORTransporter::new_serial(transport)
             }
-            #[cfg(feature = "transport-serial")]
+            #[cfg(feature = "transport-udp")]
             Transport::UDP => {
                 let host = cli.dest_host.expect("dest_host required");
                 let port = cli.udp_port;
@@ -135,6 +142,12 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 debug!("connecting to {} at port {}", host, port);
 
                 let transport = transport::UDPTransport::new((host, port)).await?;
+                let transport = Box::new(transport);
+                CBORTransporter::new(transport)
+            }
+            #[cfg(feature = "transport-ble")]
+            Transport::BLE => {
+                let transport = transport::BLETransport::find_name(&cli.peer_name.unwrap()).await?;
                 let transport = Box::new(transport);
                 CBORTransporter::new(transport)
             }

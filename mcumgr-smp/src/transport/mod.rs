@@ -14,6 +14,11 @@ mod udp;
 #[cfg(feature = "transport-udp")]
 pub use udp::UDPTransport;
 
+#[cfg(feature = "transport-ble")]
+mod ble;
+#[cfg(feature = "transport-ble")]
+pub use ble::{BLETransport, BLE_TRANSPORT_CHARACTERISTIC_UUID, BLE_TRANSPORT_SERVICE_UUID};
+
 #[cfg(feature = "payload-cbor")]
 mod cbor;
 #[cfg(feature = "payload-cbor")]

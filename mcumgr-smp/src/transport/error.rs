@@ -10,6 +10,9 @@ pub enum Error {
     #[cfg(feature = "transport-serial")]
     #[error("Serial transport: {0}")]
     Serial(#[from] tokio_serial::Error),
+    #[cfg(feature = "transport-ble")]
+    #[error("Bluetooth transport: {0}")]
+    BLE(#[from] btleplug::Error),
 }
 
 pub type Result<T = (), E = Error> = core::result::Result<T, E>;
